@@ -99,3 +99,5 @@ InitTestScene*.unity*
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
 
 .fake
+# Large file excluded
+/Assets/Agarkova_CG/Beard_man/Art/Mesh/Beard_man.fbx
