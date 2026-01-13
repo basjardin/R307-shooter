@@ -50,7 +50,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 2c22d296d434cf54380cc9acfb2c7305, type: 3}
       propertyPath: m_Name
-      value: Scavenger
+      value: pauvre
       objectReference: {fileID: 0}
     - target: {fileID: 5866666021909216657, guid: 2c22d296d434cf54380cc9acfb2c7305, type: 3}
       propertyPath: m_Avatar
@@ -107,6 +107,13 @@ MonoBehaviour:
   detectionRange: 50
   animator: {fileID: 0}
   agent: {fileID: 3971527042238555462}
+  rb: {fileID: 0}
+  gravityMultiplier: 2
+  groundCheckDistance: 0.3
+  groundLayer:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  enableGravity: 1
 --- !u!195 &3971527042238555462
 NavMeshAgent:
   m_ObjectHideFlags: 0
