@@ -101,3 +101,6 @@ InitTestScene*.unity*
 .fake
 # Large file excluded
 /Assets/Agarkova_CG/Beard_man/Art/Mesh/Beard_man.fbx
+
+# JetBrains IDE
+.idea/
