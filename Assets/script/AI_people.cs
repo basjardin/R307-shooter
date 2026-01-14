@@ -23,6 +23,20 @@ public class AI_people : MonoBehaviour
     [Header("References")]
     [SerializeField] private Animator animator;
     [SerializeField] private NavMeshAgent agent;
+    [SerializeField] private Rigidbody rb;
+
+    [Header("Hit Effect Settings")]
+    [SerializeField] private float hitFlashDuration = 0.2f;
+    private float hitFlashTimer = 0f;
+    private bool isFlashing = false;
+    private Color originalColor;
+    private Renderer[] renderers;
+
+    [Header("Gravity Settings")]
+    [SerializeField] private float gravityMultiplier = 2f;
+    [SerializeField] private float groundCheckDistance = 0.3f;
+    [SerializeField] private LayerMask groundLayer = -1;
+    [SerializeField] private bool enableGravity = true;
 
     // Private variables
     private Transform player;
@@ -30,6 +44,8 @@ public class AI_people : MonoBehaviour
     private float nextAttackTime;
     private bool isActivated = false; // Changed from isPlayerInZone
     private bool isDead = false;
+    private bool isGrounded = false;
+    private bool isFalling = false;
 
     // Animation parameter names
     private readonly string ANIM_IDLE = "Idle";
@@ -53,6 +69,28 @@ public class AI_people : MonoBehaviour
         // Initialize health
         currentHealth = maxHealth;
 
+        // Get all renderers for hit flash effect
+        renderers = GetComponentsInChildren<Renderer>();
+        if (renderers.Length > 0)
+        {
+            originalColor = renderers[0].material.color;
+        }
+
+        // Get or add Rigidbody
+        if (rb == null)
+        {
+            rb = GetComponent<Rigidbody>();
+            if (rb == null)
+            {
+                rb = gameObject.AddComponent<Rigidbody>();
+            }
+        }
+
+        // Configure Rigidbody for gravity
+        rb.useGravity = enableGravity;
+        rb.constraints = RigidbodyConstraints.FreezeRotation;
+        rb.interpolation = RigidbodyInterpolation.Interpolate;
+
         // Get or add NavMeshAgent
         if (agent == null)
         {
@@ -65,10 +103,8 @@ public class AI_people : MonoBehaviour
 
         // Configure NavMeshAgent
         agent.autoBraking = true;
-        agent.updatePosition = true;
+        agent.updatePosition = true; // Keep true for normal movement
         agent.updateRotation = true;
-
-        SnapToNavMesh();
 
         // Get or add Animator
         if (animator == null)
@@ -87,43 +123,59 @@ public class AI_people : MonoBehaviour
     {
         if (isDead) return;
 
-        // Update timer for wandering
-        timer += Time.deltaTime;
-
-        // State machine
-        switch (currentState)
+        // Update hit flash effect
+        if (isFlashing)
         {
-            case AIState.Wandering:
-                WanderBehavior();
-                CheckForPlayer();
-                break;
+            hitFlashTimer -= Time.deltaTime;
+            if (hitFlashTimer <= 0)
+            {
+                ResetHitFlash();
+            }
+        }
 
-            case AIState.Chasing:
-                ChaseBehavior();
-                break;
+        // Check if grounded and handle falling
+        CheckGrounded();
+        HandleFalling();
 
-            case AIState.Attacking:
-                AttackBehavior();
-                break;
+        // Only update AI behavior when grounded and not falling
+        if (isGrounded && !isFalling)
+        {
+            // Update timer for wandering
+            timer += Time.deltaTime;
+
+            // State machine
+            switch (currentState)
+            {
+                case AIState.Wandering:
+                    WanderBehavior();
+                    CheckForPlayer();
+                    break;
+
+                case AIState.Chasing:
+                    ChaseBehavior();
+                    break;
+
+                case AIState.Attacking:
+                    AttackBehavior();
+                    break;
+            }
         }
 
         // Update animations based on movement
         UpdateAnimations();
     }
 
-    #region Movement Behaviors
-
-    void SnapToNavMesh()
+    void FixedUpdate()
     {
-        if (agent == null) return;
-
-        NavMeshHit hit;
-        if (NavMesh.SamplePosition(transform.position, out hit, 500f, NavMesh.AllAreas))
+        // Apply custom gravity if needed
+        if (enableGravity && !isGrounded && rb != null)
         {
-            transform.position = hit.position;
-            agent.Warp(hit.position);
+            Vector3 gravity = Physics.gravity * gravityMultiplier;
+            rb.AddForce(gravity, ForceMode.Acceleration);
         }
     }
+
+    #region Movement Behaviors
 
     void WanderBehavior()
     {
@@ -262,9 +314,37 @@ public class AI_people : MonoBehaviour
         currentHealth -= damage;
         Debug.Log($"AI took {damage} damage. Current health: {currentHealth}");
 
+        // Trigger hit flash effect
+        TriggerHitFlash();
+
         if (currentHealth <= 0)
         {
             Die();
+        }
+    }
+
+    void TriggerHitFlash()
+    {
+        isFlashing = true;
+        hitFlashTimer = hitFlashDuration;
+
+        // Set all renderers to red
+        foreach (Renderer renderer in renderers)
+        {
+            Material mat = renderer.material;
+            mat.color = Color.red;
+        }
+    }
+
+    void ResetHitFlash()
+    {
+        isFlashing = false;
+
+        // Reset all renderers to original color
+        foreach (Renderer renderer in renderers)
+        {
+            Material mat = renderer.material;
+            mat.color = originalColor;
         }
     }
 
@@ -396,6 +476,127 @@ public class AI_people : MonoBehaviour
 
     #endregion
 
+    #region Gravity & Ground Detection
+
+    void CheckGrounded()
+    {
+        if (rb == null) return;
+
+        // Check if grounded using raycast
+        Vector3 rayOrigin = transform.position + Vector3.up * 0.1f;
+        isGrounded = Physics.Raycast(rayOrigin, Vector3.down, groundCheckDistance, groundLayer);
+
+        // Debug visualization
+        Debug.DrawRay(rayOrigin, Vector3.down * groundCheckDistance, isGrounded ? Color.green : Color.red);
+    }
+
+    void HandleFalling()
+    {
+        if (rb == null) return;
+
+        // Check if we should be falling
+        bool shouldBeFalling = !isGrounded && enableGravity;
+
+        if (shouldBeFalling && !isFalling)
+        {
+            // Start falling
+            StartFalling();
+        }
+        else if (!shouldBeFalling && isFalling)
+        {
+            // Land on ground
+            LandOnGround();
+        }
+    }
+
+    void StartFalling()
+    {
+        isFalling = true;
+        
+        // Completely disable NavMeshAgent during fall
+        if (agent != null)
+        {
+            agent.enabled = false;
+        }
+
+        // Enable Rigidbody physics
+        if (rb != null)
+        {
+            rb.isKinematic = false;
+            rb.useGravity = true;
+            rb.constraints = RigidbodyConstraints.FreezeRotation; // Only freeze rotation
+        }
+
+        Debug.Log("AI started falling!");
+    }
+
+    void LandOnGround()
+    {
+        isFalling = false;
+
+        // Stop all Rigidbody movement
+        if (rb != null)
+        {
+            rb.velocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+            rb.isKinematic = true;
+        }
+
+        // Re-enable NavMeshAgent after Rigidbody is stopped
+        if (agent != null)
+        {
+            agent.enabled = true;
+            agent.isStopped = false;
+            
+            // Wait a frame before setting destination to avoid conflicts
+            StartCoroutine(SetNavMeshPositionAfterDelay());
+        }
+
+        Debug.Log("AI landed on ground!");
+    }
+    
+    private System.Collections.IEnumerator SetNavMeshPositionAfterDelay()
+    {
+        yield return new WaitForEndOfFrame();
+        
+        if (agent != null && agent.enabled)
+        {
+            // Find nearest valid NavMesh position
+            NavMeshHit hit;
+            if (NavMesh.SamplePosition(transform.position, out hit, 1.0f, NavMesh.AllAreas))
+            {
+                transform.position = hit.position;
+                agent.Warp(hit.position);
+            }
+            
+            // Reset destination to current position
+            agent.SetDestination(transform.position);
+        }
+    }
+
+    #endregion
+
+    #region Collision Detection
+
+    void OnTriggerEnter(Collider other)
+    {
+        // Check if we got hit by a projectile
+        UnityEngine.XR.Content.Interaction.ProjectileDamage projectileDamage = other.GetComponent<UnityEngine.XR.Content.Interaction.ProjectileDamage>();
+        
+        if (projectileDamage != null)
+        {
+            float damage = projectileDamage.GetDamage();
+            TakeDamage(damage);
+
+            Debug.Log($"AI {gameObject.name} was hit by a projectile for {damage} damage!");
+
+            // Optional: Destroy the projectile after hit
+            Destroy(other.gameObject);
+        }
+    }
+
+    #endregion
+
     #region Gizmos (for debugging in editor)
 
     private void OnDrawGizmosSelected()
@@ -411,6 +612,14 @@ public class AI_people : MonoBehaviour
         // Draw detection range
         Gizmos.color = Color.blue;
         Gizmos.DrawWireSphere(transform.position, detectionRange);
+
+        // Draw ground check
+        if (enableGravity)
+        {
+            Gizmos.color = isGrounded ? Color.green : Color.red;
+            Vector3 rayOrigin = transform.position + Vector3.up * 0.1f;
+            Gizmos.DrawLine(rayOrigin, rayOrigin + Vector3.down * groundCheckDistance);
+        }
     }
 
     #endregion

@@ -1,16 +1,8 @@
 fileFormatVersion: 2
-guid: 4f9800672af7570478f085a3023ace57
+guid: c3e9be3a1d6a19849bd2a00a0101ccdd
 NativeFormatImporter:
   externalObjects: {}
-  mainObjectFileID: 22100000
+  mainObjectFileID: 0
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 157744
-  packageName: Human Basic Motions
-  packageVersion: 2.4.1
-  assetPath: Assets/Kevin Iglesias/Human Animations/Unity Demo Scenes/Human Basic
-    Motions/AnimatorControllers/HumanF@Idles.overrideController
-  uploadId: 824618
