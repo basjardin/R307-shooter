@@ -1,16 +1,8 @@
 fileFormatVersion: 2
-guid: 9a1c467f49c89fb40a3d7a3048d6c412
+guid: c6ed89905ec406d4abae90035ecde4eb
 NativeFormatImporter:
   externalObjects: {}
-  mainObjectFileID: 9100000
+  mainObjectFileID: 0
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 157744
-  packageName: Human Basic Motions
-  packageVersion: 2.4.1
-  assetPath: Assets/Kevin Iglesias/Human Animations/Unity Demo Scenes/Human Basic
-    Motions/AnimatorControllers/HumanM@Walk01_Right.controller
-  uploadId: 824618
