@@ -47,6 +47,10 @@ public class AI_people : MonoBehaviour
     private bool isGrounded = false;
     private bool isFalling = false;
 
+    // Track melee weapon cooldown per weapon
+    private System.Collections.Generic.Dictionary<Transform, float> meleeWeaponCooldown = new System.Collections.Generic.Dictionary<Transform, float>();
+    [SerializeField] private float meleeCooldownDuration = 0.5f;
+
     // Animation parameter names
     private readonly string ANIM_IDLE = "Idle";
     private readonly string ANIM_WALK = "Walk";
@@ -591,7 +595,47 @@ public class AI_people : MonoBehaviour
             Debug.Log($"AI {gameObject.name} was hit by a projectile for {damage} damage!");
 
             // Optional: Destroy the projectile after hit
-            Destroy(other.gameObject);
+            // Destroy(other.gameObject);
+        }
+
+        // Check if the parent has a damage attribute (melee weapon)
+        if (other.transform.parent != null)
+        {
+            Transform weaponParent = other.transform.parent;
+            
+            // Check if this weapon is on cooldown
+            if (meleeWeaponCooldown.ContainsKey(weaponParent) && Time.time < meleeWeaponCooldown[weaponParent])
+            {
+                return; // Weapon is still on cooldown
+            }
+
+            // Try to get a component with a damage attribute from parent
+            Component[] components = weaponParent.GetComponents<Component>();
+            
+            foreach (Component component in components)
+            {
+                // Use reflection to check if the component has a "damage" field or property
+                System.Reflection.FieldInfo damageField = component.GetType().GetField("damage", 
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.IgnoreCase);
+                
+                if (damageField != null)
+                {
+                    try
+                    {
+                        float damage = (float)damageField.GetValue(component);
+                        TakeDamage(damage);
+                        Debug.Log($"AI {gameObject.name} was hit by {weaponParent.name} for {damage} damage!");
+                        
+                        // Set cooldown for this weapon
+                        meleeWeaponCooldown[weaponParent] = Time.time + meleeCooldownDuration;
+                        break;
+                    }
+                    catch
+                    {
+                        // Continue to next component if conversion fails
+                    }
+                }
+            }
         }
     }
 
